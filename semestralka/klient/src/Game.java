@@ -97,7 +97,7 @@ public class Game {
         ImageView thumbsUpLeft = formatThumbsUp(imageLoader.loadImage("thumb_up_left.png"));
         ImageView thumbsUpRight = formatThumbsUp(imageLoader.loadImage("thumb_up_right.png"));
         TextField fingers = new TextField();
-        fingers.setMaxWidth(100);
+        fingers.setMaxWidth(50);
         hBox.getChildren().addAll(thumbsUpLeft,thumbsUpRight);
         hBox.setAlignment(Pos.TOP_CENTER);
         hBox.setSpacing(5);
@@ -156,7 +156,7 @@ public class Game {
         ImageView thumbsUpLeft = formatThumbsUp(imageLoader.loadImage("thumb_up_left.png"));
         ImageView thumbsUpRight = formatThumbsUp(imageLoader.loadImage("thumb_up_right.png"));
         TextField fingers = new TextField();
-        fingers.setMaxWidth(100);
+        fingers.setMaxWidth(50);
         hBox.getChildren().addAll(thumbsUpLeft,thumbsUpRight);
         hBox.setAlignment(Pos.BOTTOM_CENTER);
         hBox.setSpacing(5);
@@ -175,7 +175,7 @@ public class Game {
         ImageView thumbsUpLeft = formatThumbsUp(imageLoader.loadImage("thumb_up_left.png"));
         ImageView thumbsUpRight = formatThumbsUp(imageLoader.loadImage("thumb_up_right.png"));
         TextField fingers = new TextField();
-        fingers.setMaxWidth(100);
+        fingers.setMaxWidth(50);
         hBox.getChildren().addAll(thumbsUpLeft,thumbsUpRight);
         hBox.setAlignment(Pos.CENTER_RIGHT);
         hBox.setSpacing(5);
@@ -183,7 +183,7 @@ public class Game {
         hBox.setPadding(new Insets(0,padding,0,0));
         nameOfPlayer.setPadding(new Insets(0,padding+10,0,0));
         hBox1.getChildren().add(fingers);
-        hBox1.setPadding(new Insets(0,0,0,30));
+        hBox1.setPadding(new Insets(0,0,0,55));
         vBox.getChildren().addAll(hBox,imageView,hBox1,nameOfPlayer);
         vBox.setAlignment(Pos.CENTER_RIGHT);
         vBox.setPadding(new Insets(210,0,0,0));
@@ -200,7 +200,7 @@ public class Game {
         ImageView thumbsUpLeft = formatThumbsUp(imageLoader.loadImage("thumb_up_left.png"));
         ImageView thumbsUpRight = formatThumbsUp(imageLoader.loadImage("thumb_up_right.png"));
         TextField fingers = new TextField();
-        fingers.setMaxWidth(100);
+        fingers.setMaxWidth(50);
         hBox.getChildren().addAll(thumbsUpLeft,thumbsUpRight);
         hBox.setAlignment(Pos.CENTER_LEFT);
         hBox.setSpacing(5);
@@ -208,7 +208,7 @@ public class Game {
         hBox.setPadding(new Insets(0,0,0,padding));
         nameOfPlayer.setPadding(new Insets(0,0,0,padding+10));
         hBox1.getChildren().add(fingers);
-        hBox1.setPadding(new Insets(0,0,0,padding-8));
+        hBox1.setPadding(new Insets(0,0,0,padding+10));
         vBox.getChildren().addAll(hBox,imageView,hBox1,nameOfPlayer);
         vBox.setAlignment(Pos.CENTER_LEFT);
         vBox.setPadding(new Insets(210,0,0,0));
