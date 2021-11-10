@@ -1,0 +1,26 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/Users/honza/Downloads/bonus1/reverse_client.c
+sys/types.h
+-
+sys/socket.h
+-
+stdio.h
+-
+string.h
+-
+stdlib.h
+-
+sys/un.h
+-
+netinet/in.h
+-
+unistd.h
+-
+

@@ -1,0 +1,3 @@
+/Users/honza/Downloads/bonus1/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/Users/honza/Downloads/bonus1/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/honza/Downloads/bonus1/cmake-build-debug/CMakeFiles/bonus1.dir
