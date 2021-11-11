@@ -100,7 +100,7 @@ public class Intro {
             gamer = new Gamer(name.getCharacters().toString());
 
             try {
-                game = new Game(primStage,4);
+                game = new Game(primStage,4,gamer);
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             }
