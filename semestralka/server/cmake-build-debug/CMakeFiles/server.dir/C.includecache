@@ -29,6 +29,8 @@ sys/ioctl.h
 -
 signal.h
 -
+pthread.h
+-
 queue.c
 /mnt/d/UPS/semestralka/server/queue.c
 stateMachine.c

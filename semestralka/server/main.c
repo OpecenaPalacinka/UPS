@@ -8,14 +8,18 @@
 // kvuli iotctl
 #include <sys/ioctl.h>
 #include <signal.h>
+#include <pthread.h>
 
 #include "queue.c"
 #include "stateMachine.c"
 #include "parser.c"
 #include "game.h"
 
-
 #define MAX_INPUT_LENGTH 75
+
+//Rozhodovací promměná pro frontu hráčů
+int decide = 0;
+pthread_mutex_t mutex;
 
 Gamer *new_gamer(){
     Gamer *gamer1;
@@ -33,16 +37,29 @@ Game *new_game(int numOfPlaye){
     return gameska;
 }
 
+void *funkce() {
+    pthread_mutex_lock(&mutex);
+    decide = 1;
+    pthread_mutex_unlock(&mutex);
+    sleep(2);
+    pthread_mutex_lock(&mutex);
+    decide = 2;
+    pthread_mutex_unlock(&mutex);
+    printf("Nespim\n");
+    pthread_exit(&decide);
+}
+
+
 int main (void) {
 
     int server_socket;
     int client_socket, fd;
     int return_value;
     Event event;
-    //Rozhodovací promměná pro frontu hráčů
-    int decide = 0;
-    //Proměnná pro zabití dítěte
-    int id = -42;
+
+    void *random;
+
+    pthread_t thread;
 
     Gamer **gamers = malloc(sizeof(Gamer) * 10);
     int numOfWaitingPlayers = 0;
@@ -105,7 +122,11 @@ int main (void) {
         }
         // vynechavame stdin, stdout, stderr
         for (fd = 3; fd < FD_SETSIZE; fd++) {
-
+            pthread_join(thread,&random);
+            if (decide == 2){
+                printf("V goto\n");
+                goto start;
+            }
             // je dany socket v sade fd ze kterych lze cist ?
             if (FD_ISSET(fd, &tests)) {
                 // je to server socket ? prijmeme nove spojeni
@@ -178,23 +199,18 @@ int main (void) {
                                 printf("%d\n",playersInQueue);
                                 strcpy(start_message,"START|");
 
+                                start:
+
                                 if (playersInQueue >= 2 && playersInQueue <= 3){
                                     //Start countdown
                                     printf("Jsem tu\n");
-                                    start:
                                     if (decide == 0) {
-                                        id = fork();
-                                        if (id == 0) {
-                                            decide = 1;
-                                            sleep(15);
-                                            decide = 2;
-                                            printf("Nespim\n");
-                                            goto start;
-                                        }
+                                        pthread_create(&thread,NULL, &funkce,NULL);
                                     } else if (decide == 2) {
-                                        kill(0,SIGKILL);
                                         playersInQueue = elementsInQueue();
+
                                         game = new_game(playersInQueue);
+                                        decide = 0;
                                         for (int i = 0; i < playersInQueue; i++){
                                             game->gamers[i] = dequeue();
                                             strcat(start_message,game->gamers[i]->name);
@@ -203,14 +219,15 @@ int main (void) {
                                             }
                                         }
                                         printf("%s\n",start_message);
+                                        write(game->gamers[0]->socket,start_message, strlen(start_message));
                                     }
-
 
                                     //dequeue()
                                 } else if (playersInQueue == 4){
                                     //Start game
                                     char *neco = "4|IDHRÁČECOZAČÍNÁ|";
                                     game = new_game(4);
+                                    decide = 0;
                                     strcat(start_message,neco);
                                     for (int i = 0; i < 4; i++){
                                         game->gamers[i] = dequeue();
@@ -230,8 +247,6 @@ int main (void) {
 
                                 }
 
-                                write(client_socket, login_success, sizeof(login_success) - 1);
-                                sleep(3);
                                 write(client_socket, login_success, sizeof(login_success) - 1);
                                 break;
                             case EV_GUESS:
