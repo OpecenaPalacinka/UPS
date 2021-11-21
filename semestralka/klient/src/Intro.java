@@ -1,6 +1,9 @@
 import javafx.application.Preloader;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.concurrent.Task;
+import javafx.concurrent.WorkerStateEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -29,6 +32,7 @@ public class Intro {
     Stage primStage;
     Parser parser = new Parser();
 
+
     String loginMessage;
 
     int minWidth =  550;
@@ -37,7 +41,15 @@ public class Intro {
     final BooleanProperty booleanProperty = new SimpleBooleanProperty(true);
 
     public Intro(Stage stage) {
+        try {
+            message.init();
+        } catch (IOException e) {
+            System.err.println("Nepodařilo se navázat spojení se serverem! Končíme");
+            System.exit(0);
+        }
         primStage = stage;
+
+        System.out.println(message.readSomething());
     }
 
     public Parent createRootPane(){
@@ -85,34 +97,53 @@ public class Intro {
 
             loginMessage = CommandsClient.LOGIN + "|" + name.getCharacters().toString();
             System.out.println(loginMessage);
-            parser.parse("ENDGAME|ks");
+            //parser.parse("ENDGAME|ks");
 
-            /*
             try {
-                message.init();
+                message.writeSomething(loginMessage);
             } catch (IOException e) {
-                System.err.println("Nepodařilo se navázat spojení se serverem! Končíme");
-                System.exit(0);
-            }
-
-             */
-
-            gamer = new Gamer(name.getCharacters().toString());
-
-            try {
-                game = new Game(primStage,4,gamer);
-            } catch (FileNotFoundException e) {
                 e.printStackTrace();
             }
-            try {
-                primStage.setScene(new Scene(game.createRootPanee(),game.minHeight,game.minWidth));
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
-            primStage.sizeToScene();
-            primStage.setMinHeight(game.minHeight);
-            primStage.setMinWidth(game.minWidth);
-            primStage.setY(100);
+
+            System.out.println(message.readSomething());
+            System.out.println(message.readSomething());
+
+            Task<Void> sleeper = new Task<Void>() {
+                @Override
+                protected Void call() throws Exception {
+                    try {
+                        while (message.readSomething().equals("")){
+                            Thread.sleep(1000);
+                        }
+
+                    } catch (InterruptedException e) {
+                    }
+                    return null;
+                }
+            };
+            sleeper.setOnSucceeded(new EventHandler<WorkerStateEvent>() {
+                @Override
+                public void handle(WorkerStateEvent event) {
+                    gamer = new Gamer(name.getCharacters().toString());
+
+                    try {
+                        game = new Game(primStage,4,gamer);
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    }
+
+                    try {
+                        primStage.setScene(new Scene(game.createRootPanee(),game.minHeight,game.minWidth));
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                    primStage.sizeToScene();
+                    primStage.setMinHeight(game.minHeight);
+                    primStage.setMinWidth(game.minWidth);
+                    primStage.setY(100);
+                }
+            });
+            new Thread(sleeper).start();
 
         });
 

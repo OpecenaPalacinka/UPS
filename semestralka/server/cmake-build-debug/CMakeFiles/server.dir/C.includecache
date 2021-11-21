@@ -6,6 +6,10 @@
 
 #IncludeRegexTransform: 
 
+/mnt/d/UPS/semestralka/server/game.h
+stateMachine.h
+/mnt/d/UPS/semestralka/server/stateMachine.h
+
 /mnt/d/UPS/semestralka/server/main.c
 stdio.h
 -
@@ -23,4 +27,36 @@ stdlib.h
 -
 sys/ioctl.h
 -
+signal.h
+-
+queue.c
+/mnt/d/UPS/semestralka/server/queue.c
+stateMachine.c
+/mnt/d/UPS/semestralka/server/stateMachine.c
+parser.c
+/mnt/d/UPS/semestralka/server/parser.c
+game.h
+/mnt/d/UPS/semestralka/server/game.h
+
+/mnt/d/UPS/semestralka/server/parser.c
+string.h
+-
+malloc.h
+-
+
+/mnt/d/UPS/semestralka/server/queue.c
+stdio.h
+-
+stdlib.h
+-
+game.h
+/mnt/d/UPS/semestralka/server/game.h
+
+/mnt/d/UPS/semestralka/server/stateMachine.c
+stdio.h
+-
+stdlib.h
+-
+
+/mnt/d/UPS/semestralka/server/stateMachine.h
 

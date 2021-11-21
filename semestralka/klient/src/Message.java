@@ -30,7 +30,7 @@ public class Message {
     }
 
     public String readSomething() {
-        String sentence;
+        String sentence = "";
         try {
             sentence = reader.readLine();
             return sentence;

@@ -1,0 +1,26 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/vikturek/Documents/FIT/Projects/TCP_example_server/main.cpp
+iostream
+-
+cstdlib
+-
+cstdio
+-
+sys/socket.h
+-
+unistd.h
+-
+netinet/in.h
+-
+strings.h
+-
+wait.h
+-
+

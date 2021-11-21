@@ -76,7 +76,13 @@
 				</MakeCommands>
 			</Target>
 		</Build>
+		<Unit filename="/mnt/d/UPS/semestralka/server/game.h">
+			<Option target="server"/>
+		</Unit>
 		<Unit filename="/mnt/d/UPS/semestralka/server/main.c">
+			<Option target="server"/>
+		</Unit>
+		<Unit filename="/mnt/d/UPS/semestralka/server/stateMachine.h">
 			<Option target="server"/>
 		</Unit>
 		<Unit filename="/mnt/d/UPS/semestralka/server/CMakeLists.txt">
