@@ -64,14 +64,15 @@ int main (void) {
     Gamer **gamers = malloc(sizeof(Gamer) * 10);
     int numOfWaitingPlayers = 0;
     int playersInQueue;
-    Game *game = NULL;
+    int numOfGames = 0;
+    Game **game = malloc(sizeof(Game) * 10);
     int numOfArgs = 0;
     char **arguments = NULL;
 
     char welcome_message[] = "Zdárek párek, úspěšně jsi se připojil na server!\n";
     char login_success[] = "Úspěšně jste byl přihlášen, nyní jste ve frontě a prosím počkejte, než vám najdeme protihráče.\n";
     char **names_ready_to_play = malloc(sizeof(char *) * 4);
-    char *start_message = malloc(sizeof(char) * MAX_NAME_LENGTH * 5);
+    char *start_message = malloc(sizeof(char) * MAX_NAME_LENGTH * 5 + 15);
 
     char *input = malloc(sizeof(char) * MAX_INPUT_LENGTH);
     int len_addr;
@@ -181,7 +182,7 @@ int main (void) {
                                 gamers[numOfWaitingPlayers]->socket = fd;
 
                                 enqueue(gamers[numOfWaitingPlayers]);
-                                names_ready_to_play[numOfWaitingPlayers] = gamers[numOfWaitingPlayers]->name;
+                                names_ready_to_play[numOfWaitingPlayers] = strcat(gamers[numOfWaitingPlayers]->name,"2");
                                 numOfWaitingPlayers++;
                                 gamers[numOfWaitingPlayers] = new_gamer();
 
@@ -190,14 +191,23 @@ int main (void) {
                                 gamers[numOfWaitingPlayers]->socket = fd;
 
                                 enqueue(gamers[numOfWaitingPlayers]);
-                                names_ready_to_play[numOfWaitingPlayers] = gamers[numOfWaitingPlayers]->name;
+                                names_ready_to_play[numOfWaitingPlayers] = strcat(gamers[numOfWaitingPlayers]->name,"3");
                                 numOfWaitingPlayers++;
+
                                 gamers[numOfWaitingPlayers] = new_gamer();
 
+                                gamers[numOfWaitingPlayers]->numOfFingers = 2;
+                                strcpy(gamers[numOfWaitingPlayers]->name,arguments[1]);
+                                gamers[numOfWaitingPlayers]->socket = fd;
+
+                                enqueue(gamers[numOfWaitingPlayers]);
+                                names_ready_to_play[numOfWaitingPlayers] = strcat(gamers[numOfWaitingPlayers]->name,"4");
+                                numOfWaitingPlayers++;
+
+                                write(client_socket, login_success, sizeof(login_success) - 1);
 
                                 playersInQueue = elementsInQueue();
                                 printf("%d\n",playersInQueue);
-                                strcpy(start_message,"START|");
 
                                 start:
 
@@ -209,45 +219,50 @@ int main (void) {
                                     } else if (decide == 2) {
                                         playersInQueue = elementsInQueue();
 
-                                        game = new_game(playersInQueue);
+                                        game[numOfGames] = new_game(playersInQueue);
                                         decide = 0;
                                         for (int i = 0; i < playersInQueue; i++){
-                                            game->gamers[i] = dequeue();
-                                            strcat(start_message,game->gamers[i]->name);
-                                            if (i != playersInQueue-1){
-                                                strcat(start_message,"|");
-                                            }
+                                            game[numOfGames]->gamers[i] = dequeue();
                                         }
-                                        printf("%s\n",start_message);
-                                        write(game->gamers[0]->socket,start_message, strlen(start_message));
+
+                                        strcpy(start_message, makeSTARTCommand(start_message,playersInQueue,game[numOfGames]));
+
+                                        /*
+                                        for (int i = 0; i < playersInQueue; i++){
+                                            write(game[numOfGames]->gamers[i]->socket,start_message, sizeof(start_message) - 1);
+                                         }
+                                        */
+
+
+                                        printf("%s", start_message);
+                                        write(game[numOfGames]->gamers[0]->socket,start_message, strlen(start_message));
+                                        numOfGames++;
+                                        break;
                                     }
 
                                     //dequeue()
                                 } else if (playersInQueue == 4){
                                     //Start game
-                                    char *neco = "4|IDHRÁČECOZAČÍNÁ|";
-                                    game = new_game(4);
+                                    game[numOfGames] = new_game(4);
                                     decide = 0;
-                                    strcat(start_message,neco);
                                     for (int i = 0; i < 4; i++){
-                                        game->gamers[i] = dequeue();
-                                        strcat(start_message,game->gamers[i]->name);
-                                        if (i != 3){
-                                            strcat(start_message,"|");
-                                        }
+                                        game[numOfGames]->gamers[i] = dequeue();
                                     }
+
+                                    strcpy(start_message,makeSTARTCommand(start_message,playersInQueue,game[numOfGames]));
+
                                     /*
                                     for (int i = 0; i < 4; i++){
-                                        write(game->gamers[i]->socket,start_message, sizeof(start_message) - 1);
+                                        write(game[numOfGames]->gamers[i]->socket,start_message, sizeof(start_message) - 1);
                                     }
                                      */
-                                    neco = "\n";
-                                    strcat(start_message,neco);
-                                    write(game->gamers[0]->socket,start_message, strlen(start_message));
 
+                                    write(game[numOfGames]->gamers[0]->socket,start_message, strlen(start_message));
+                                    numOfGames++;
+                                    break;
                                 }
 
-                                write(client_socket, login_success, sizeof(login_success) - 1);
+
                                 break;
                             case EV_GUESS:
                                 //

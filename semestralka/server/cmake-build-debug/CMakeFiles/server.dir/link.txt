@@ -1,1 +1,1 @@
-/usr/bin/cc -g   CMakeFiles/server.dir/main.c.o  -o server 
+/usr/bin/cc -pthread -g   CMakeFiles/server.dir/main.c.o  -o server 

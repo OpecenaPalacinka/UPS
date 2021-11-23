@@ -6,7 +6,6 @@
 #include <malloc.h>
 
 #define DELIM "|"
-#define TERM "\n"
 
 char **get_args(char *input, int *args){
     char **arguments;
@@ -47,4 +46,18 @@ Event setEventFromArg(char *event){
         printf("Wrong input! ENDING");
         return EV_WRONG;
     }
+}
+
+char * makeSTARTCommand(char *message,int numOfPlayers, Game *game){
+    snprintf(message, 9,"START|%d|",numOfPlayers);
+
+    for (int i = 0; i < numOfPlayers; ++i) {
+        strcat(message,game->gamers[i]->name);
+        if (i != numOfPlayers -1){
+            strcat(message,"|");
+        }
+    }
+    strcat(message,"\n");
+
+    return message;
 }

@@ -2,6 +2,8 @@ import java.util.Arrays;
 
 public class Parser {
 
+
+
     public void parse(String message){
         String command = message.split("\\|")[0];
 

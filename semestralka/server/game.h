@@ -7,7 +7,7 @@
 
 #include "stateMachine.h"
 
-#define MAX_NAME_LENGTH 35
+#define MAX_NAME_LENGTH 15
 
 typedef struct gamers {
     char name[MAX_NAME_LENGTH];

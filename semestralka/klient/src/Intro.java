@@ -9,10 +9,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
-import javafx.scene.control.Tooltip;
+import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -31,6 +28,8 @@ public class Intro {
     Message message = new Message();
     Stage primStage;
     Parser parser = new Parser();
+    String forParser = "";
+    String[] parsedMessage;
 
 
     String loginMessage;
@@ -96,7 +95,6 @@ public class Intro {
         button.setOnAction(mouseEvent -> {
 
             loginMessage = CommandsClient.LOGIN + "|" + name.getCharacters().toString();
-            System.out.println(loginMessage);
             //parser.parse("ENDGAME|ks");
 
             try {
@@ -105,14 +103,18 @@ public class Intro {
                 e.printStackTrace();
             }
 
-            System.out.println(message.readSomething());
-            System.out.println(message.readSomething());
+            Alert a = new Alert(Alert.AlertType.INFORMATION);
+            a.setTitle("Waiting");
+            a.setHeaderText("Wait till game starts!");
+            a.setContentText(message.readSomething());
+            a.getButtonTypes().clear();
+            a.show();
 
             Task<Void> sleeper = new Task<Void>() {
                 @Override
                 protected Void call() throws Exception {
                     try {
-                        while (message.readSomething().equals("")){
+                        while ((forParser = message.readSomething()).equals("")){
                             Thread.sleep(1000);
                         }
 
@@ -124,10 +126,17 @@ public class Intro {
             sleeper.setOnSucceeded(new EventHandler<WorkerStateEvent>() {
                 @Override
                 public void handle(WorkerStateEvent event) {
-                    gamer = new Gamer(name.getCharacters().toString());
 
+                    a.setResult(ButtonType.CLOSE);
+                    a.close();
+
+                    parsedMessage = forParser.split("\\|");
+                    int numOfPlay = Integer.parseInt(parsedMessage[1]);
+                    for (int i = 2; i < numOfPlay+2; i++) {
+                        parsedMessage[i-2] = parsedMessage[i];
+                    }
                     try {
-                        game = new Game(primStage,4,gamer);
+                        game = new Game(primStage,numOfPlay, parsedMessage,name.getCharacters().toString(),message);
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
                     }
