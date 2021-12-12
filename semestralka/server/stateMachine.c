@@ -1,12 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define STATES_COUNT 6
-#define EVENTS_COUNT 4
-
 const char * const state_str[] = {
         [ST_NOT_ALLOWED] = "not allowed",
-        [ST_INIT] = "init",
         [ST_WAITING] = "waiting",
         [ST_WORKING]  = "working",
         [ST_PAUSE]  = "pause",
@@ -20,9 +16,9 @@ const char * const event_str[] = {
 };
 
 State transitions[STATES_COUNT][EVENTS_COUNT] = {
-        //[ST_INIT][EV_WAIT] = ST_WAITING,
-        //[ST_WAITING][EV_WORK] = ST_WORKING,
-        //[ST_WAITING][EV_PAUSE] = ST_PAUSE
+        [ST_INIT][EV_LOGIN] = ST_INIT,
+        [ST_WAITING][EV_GUESS] = ST_WORKING,
+        [ST_WAITING][EV_PAUSE] = ST_PAUSE
 };
 
 void print_states(){

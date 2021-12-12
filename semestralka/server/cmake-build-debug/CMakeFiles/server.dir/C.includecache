@@ -27,8 +27,6 @@ stdlib.h
 -
 sys/ioctl.h
 -
-signal.h
--
 pthread.h
 -
 queue.c

@@ -1,6 +1,6 @@
 public enum CommandsServer {
     START ("START"),
-    GUESS ("GUESS"),
+    GUESS ("GIVEGUESS"),
     ENDOFROUND ("ENDOFROUND"),
     ENDGAME ("ENDGAME");
 

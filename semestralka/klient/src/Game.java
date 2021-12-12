@@ -1,17 +1,16 @@
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleIntegerProperty;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
@@ -22,22 +21,31 @@ import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import javafx.util.converter.NumberStringConverter;
 
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 
 public class Game {
 
     final String leftImage = "thumb_up_left.png";
     final String rightImage = "thumb_up_right.png";
 
+    Button guessBttn = new Button("Tipuju");
+    TextField guessTF = new TextField();
 
+
+    Button[] imageViewButtons;
+
+    String incMessage = "";
+    boolean notYourTurn = false;
+    TextField fingers = new TextField();
+
+    Thread thread;
     Intro intro;
     Stage primStage;
     ImageLoader imageLoader = new ImageLoader();
     Message message;
     Gamer gamer = new Gamer();
+    int remainingFingers;
 
     int numberOfPlayers;
     String[] namesOfPlayers;
@@ -57,6 +65,9 @@ public class Game {
         namesOfPlayers = names;
         inputedName = inputName;
         message = message1;
+        gamer.setName(inputName);
+        imageViewButtons = new Button[numOfPlayers*2];
+        remainingFingers = numOfPlayers*2;
     }
 
 
@@ -109,6 +120,7 @@ public class Game {
         HBox hBox = new HBox();
         HBox hBox1 = new HBox();
         VBox main = new VBox();
+
         Label nameOfPlayer = new Label(name);
         nameOfPlayer.setFont(Font.font("Verdana", FontWeight.BOLD, FontPosture.REGULAR,13));
 
@@ -119,8 +131,12 @@ public class Game {
         Button thumbUpLeftBttn = new Button();
         Button thumbUpRightBttn = new Button();
 
+        addImageViews(thumbUpLeftBttn,thumbUpRightBttn,0);
+
         thumbUpLeftBttn.setGraphic(thumbsUpLeft);
         thumbUpRightBttn.setGraphic(thumbsUpRight);
+
+        listenAndWait();
 
         if (isActualGamer){
 
@@ -144,9 +160,12 @@ public class Game {
                 }
             });
 
-            TextField fingers = new TextField();
+
             fingers.setMaxWidth(50);
             fingers.textProperty().bindBidirectional(gamer.fingersSelectedProperty(), new NumberStringConverter());
+            fingers.setDisable(true);
+            fingers.setAlignment(Pos.CENTER);
+            fingers.setFont(Font.font("Verdana", FontWeight.BOLD, FontPosture.REGULAR,16));
             hBox1.setAlignment(Pos.TOP_CENTER);
             hBox1.getChildren().add(fingers);
 
@@ -170,8 +189,8 @@ public class Game {
 
         VBox guessBox = new VBox();
         Label guess = new Label("Tvůj tip");
-        TextField guessTF = new TextField();
-        Button guessBttn = new Button("Tipuju");
+
+
 
         //ABY TEXTFIELD NEMĚL FOCUS
         guessTF.focusedProperty().addListener((observable,  oldValue,  newValue) -> {
@@ -188,7 +207,7 @@ public class Game {
                 guessTF.setText(t1.replaceAll("[^\\d]", ""));
             }
             try {
-                if(Integer.parseInt(t1) > numberOfPlayers * 2){
+                if(Integer.parseInt(t1) > remainingFingers){
                     guessTF.setText(s);
                 }
             } catch (Exception ignored){
@@ -197,25 +216,27 @@ public class Game {
         });
         guessTF.setText("0");
 
-        // https://stackoverflow.com/questions/16919727/javafx-how-to-disable-a-button-for-a-specific-amount-of-time
-        // DISABLE BUTTON FOR SPECIFIC TIME
-        new Thread(() -> {
-            Platform.runLater(() -> guessBttn.setDisable(true));
-            try {
-                Thread.sleep(5000); //5 seconds, obviously replace with your chosen time
-            }
-            catch(InterruptedException ignored) {
-            }
-            Platform.runLater(() -> guessBttn.setDisable(false));
-        }).start();
+        guessBttnControl(isActualGamer);
 
         guessBttn.setOnMouseClicked(mouseEvent -> {
+            thread.interrupt();
+            if (guessTF.getText().equals("")){
+                guessTF.setText("0");
+            }
             try {
                 message.writeSomething("GUESS|"+guessTF.getText());
             } catch (IOException e) {
                 e.printStackTrace();
             }
+            try {
+                Thread.sleep(150);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            listenAndWait();
         });
+
 
         guess.setFont(Font.font("Verdana", FontWeight.BOLD, FontPosture.REGULAR,17));
         guessTF.setMaxWidth(75);
@@ -231,6 +252,11 @@ public class Game {
         return main;
     }
 
+    private void addImageViews(Button thumbsUpLeft, Button thumbsUpRight, int i) {
+        imageViewButtons[i] = thumbsUpLeft;
+        imageViewButtons[i+1] = thumbsUpRight;
+    }
+
     private Node createBottom(ImageView imageView, String name, boolean isActualGamer) throws FileNotFoundException {
         VBox vBox = new VBox();
         HBox hBox = new HBox();
@@ -242,6 +268,8 @@ public class Game {
 
         Button thumbUpLeftBttn = new Button();
         Button thumbUpRightBttn = new Button();
+
+        addImageViews(thumbUpLeftBttn,thumbUpRightBttn,2);
 
         thumbUpLeftBttn.setGraphic(thumbsUpLeft);
         thumbUpRightBttn.setGraphic(thumbsUpRight);
@@ -268,9 +296,12 @@ public class Game {
                 }
             });
 
-            TextField fingers = new TextField();
+
             fingers.setMaxWidth(50);
             fingers.textProperty().bindBidirectional(gamer.fingersSelectedProperty(), new NumberStringConverter());
+            fingers.setDisable(true);
+            fingers.setAlignment(Pos.CENTER);
+            fingers.setFont(Font.font("Verdana", FontWeight.BOLD, FontPosture.REGULAR,16));
             hBox1.setAlignment(Pos.BOTTOM_CENTER);
             hBox1.getChildren().add(fingers);
 
@@ -304,6 +335,8 @@ public class Game {
         Button thumbUpLeftBttn = new Button();
         Button thumbUpRightBttn = new Button();
 
+        addImageViews(thumbUpLeftBttn,thumbUpRightBttn,4);
+
         thumbUpLeftBttn.setGraphic(thumbsUpLeft);
         thumbUpRightBttn.setGraphic(thumbsUpRight);
 
@@ -329,9 +362,11 @@ public class Game {
                 }
             });
 
-            TextField fingers = new TextField();
             fingers.setMaxWidth(50);
+            fingers.setAlignment(Pos.CENTER);
             fingers.textProperty().bindBidirectional(gamer.fingersSelectedProperty(), new NumberStringConverter());
+            fingers.setDisable(true);
+            fingers.setFont(Font.font("Verdana", FontWeight.BOLD, FontPosture.REGULAR,16));
             hBox1.getChildren().add(fingers);
 
         } else {
@@ -369,6 +404,8 @@ public class Game {
         Button thumbUpLeftBttn = new Button();
         Button thumbUpRightBttn = new Button();
 
+        addImageViews(thumbUpLeftBttn,thumbUpRightBttn,6);
+
         thumbUpLeftBttn.setGraphic(thumbsUpLeft);
         thumbUpRightBttn.setGraphic(thumbsUpRight);
 
@@ -394,9 +431,11 @@ public class Game {
                 }
             });
 
-            TextField fingers = new TextField();
             fingers.setMaxWidth(50);
+            fingers.setAlignment(Pos.CENTER);
             fingers.textProperty().bindBidirectional(gamer.fingersSelectedProperty(), new NumberStringConverter());
+            fingers.setDisable(true);
+            fingers.setFont(Font.font("Verdana", FontWeight.BOLD, FontPosture.REGULAR,16));
             hBox1.getChildren().add(fingers);
 
         } else {
@@ -425,9 +464,12 @@ public class Game {
         return vBox;
     }
 
-
-    public void EndOfGame(){
-        intro = new Intro(primStage);
+    public void EndOfGame(String name){
+        Alert a = new Alert(Alert.AlertType.INFORMATION);
+        a.setHeaderText("Konec hry");
+        a.setContentText("Hru vyhrál "+name);
+        a.showAndWait();
+        intro = new Intro(primStage,message);
         primStage.setScene(new Scene(intro.createRootPane(),intro.minWidth, intro.minHeight));
         primStage.sizeToScene();
         primStage.setMinHeight(intro.minHeight);
@@ -438,4 +480,113 @@ public class Game {
         return inputName.equals(name);
     }
 
+    public void listenAndWait(){
+
+        Task<Void> sleeper = new Task<>() {
+            @Override
+            protected Void call() {
+                try {
+                    while ((incMessage = message.readSomething()).equals("")) {
+                        Thread.sleep(1000);
+                    }
+
+                } catch (InterruptedException ignored) {
+                }
+                return null;
+            }
+        };
+        sleeper.setOnSucceeded(event -> {
+            try {
+                parse(incMessage);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        thread = new Thread(sleeper);
+        thread.start();
+
+    }
+
+    public void guessBttnControl(boolean turn){
+        notYourTurn = turn;
+
+        if (!notYourTurn){
+            listenAndWait();
+        }
+
+        // https://stackoverflow.com/questions/16919727/javafx-how-to-disable-a-button-for-a-specific-amount-of-time
+        // DISABLE BUTTON FOR SPECIFIC TIME
+        new Thread(() -> {
+            Platform.runLater(() -> guessBttn.setDisable(true));
+            try {
+                Thread.sleep(5000); //5 seconds
+            }
+            catch(InterruptedException ignored) {
+            }
+            if (notYourTurn){
+                Platform.runLater(() -> guessBttn.setDisable(false));
+            }
+        }).start();
+    }
+
+    public void hideImageView(String inputedName){
+        for (int i = 0; i < namesOfPlayers.length; i++) {
+            if (namesOfPlayers[i].equals(inputedName)){
+                imageViewButtons[i*2].setVisible(false);
+                break;
+            }
+        }
+    }
+
+
+    public void parse(String message1) throws IOException {
+        String command = message1.split("\\|")[0];
+
+        switch (command) {
+            //NENASTANE
+            case "START":
+                System.out.println("Loginek");
+                break;
+            case "GIVEGUESS":
+                incMessage = "";
+                message.writeSomething("FINGERS|"+ gamer.getFingersSelected());
+                listenAndWait();
+                System.out.println("GIVEGUESS");
+                break;
+            case "ENDOFROUND":
+                guessBttnControl(isActualGamer(message1.split("\\|")[1], gamer.getName()));
+                fingers.setText("0");
+                rightBttn = false;
+                leftBttn = false;
+                remainingFingers--;
+                guessTF.setText("0");
+                Alert a = new Alert(Alert.AlertType.INFORMATION);
+
+                if (message1.split("\\|")[2].equals("true")){
+                    a.setHeaderText("Správně!");
+                    a.setContentText("Hráč: "+message1.split("\\|")[3]+" -> ČIM ČONG "+ message1.split("\\|")[5]);
+                    hideImageView(message1.split("\\|")[3]);
+                    gamer.setNumOfFingers(gamer.getNumOfFingers()-1);
+                } else {
+                    a.setHeaderText("Chybička!");
+                    a.setContentText("Hráč: "+message1.split("\\|")[3]+" -> ČIM ČONG "+ message1.split("\\|")[5] +" v reálu se zvedlo "+message1.split("\\|")[4]+" palců.\nSadge");
+                }
+                a.show();
+                System.out.println("ENDOFROUND");
+                break;
+            case "ENDGAME":
+                EndOfGame(message1.split("\\|")[1]);
+                System.out.println("ENDGAME");
+                break;
+            case "LOGOUT":
+                incMessage = "";
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setContentText("Hráč "+message1.split("\\|")[1]+" se odpojil. Hrajeme bez něj!\nJeho prsty budou vždy nula.");
+                alert.setHeaderText("Odpojení ze hry");
+                alert.show();
+            default:
+                System.out.println("Nenene");
+        }
+
+    }
 }

@@ -5,7 +5,7 @@
 
 # define SIZE 100
 
-void enqueue();
+void enqueue(Gamer *gamer);
 Gamer *dequeue();
 int elementsInQueue();
 

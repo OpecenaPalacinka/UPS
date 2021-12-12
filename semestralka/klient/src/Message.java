@@ -7,8 +7,10 @@ public class Message {
     BufferedReader reader;
     PrintWriter writer;
     Socket socket;
+    boolean connected;
 
-    public Message(){
+    public Message(boolean connect){
+        connected = connect;
     }
 
     public void init() throws IOException {
@@ -17,7 +19,7 @@ public class Message {
         System.out.print("Pripojuju se na : " + adresa.getHostAddress() + " se jmenem : " + adresa.getHostName() + "\n");
         reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()));
-
+        connected = true;
     }
 
     public void writeSomething(String sentence) throws IOException {

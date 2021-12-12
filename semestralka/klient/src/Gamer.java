@@ -5,6 +5,25 @@ import java.io.IOException;
 
 public class Gamer {
 
+    String name = "";
+
+    public int getNumOfFingers() {
+        return numOfFingers;
+    }
+
+    public void setNumOfFingers(int numOfFingers) {
+        this.numOfFingers = numOfFingers;
+    }
+
+    int numOfFingers = 2;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
 
     IntegerProperty fingersSelected = new SimpleIntegerProperty(0);
 

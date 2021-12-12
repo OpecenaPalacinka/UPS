@@ -21,13 +21,13 @@ import javafx.stage.Window;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Arrays;
 
 public class Intro {
     Game game;
     Gamer gamer;
-    Message message = new Message();
+    Message message;
     Stage primStage;
-    Parser parser = new Parser();
     String forParser = "";
     String[] parsedMessage;
 
@@ -39,16 +39,22 @@ public class Intro {
 
     final BooleanProperty booleanProperty = new SimpleBooleanProperty(true);
 
-    public Intro(Stage stage) {
-        try {
-            message.init();
-        } catch (IOException e) {
-            System.err.println("Nepodařilo se navázat spojení se serverem! Končíme");
-            System.exit(0);
-        }
+    public Intro(Stage stage, Message mess) {
         primStage = stage;
+        message = mess;
+    }
 
-        System.out.println(message.readSomething());
+    public void initMessage(){
+        System.out.println(message.connected);
+        if (!message.connected) {
+            try {
+                message.init();
+                message.readSomething();
+            } catch (IOException e) {
+                System.err.println("Nepodařilo se navázat spojení se serverem! Končíme");
+                System.exit(0);
+            }
+        }
     }
 
     public Parent createRootPane(){
@@ -92,10 +98,16 @@ public class Intro {
             }
         });
 
+
         button.setOnAction(mouseEvent -> {
 
+            initMessage();
+
+            if (name.getCharacters().toString().equals("")){
+                name.setText("Trouba");
+            }
+
             loginMessage = CommandsClient.LOGIN + "|" + name.getCharacters().toString();
-            //parser.parse("ENDGAME|ks");
 
             try {
                 message.writeSomething(loginMessage);
@@ -104,11 +116,16 @@ public class Intro {
             }
 
             Alert a = new Alert(Alert.AlertType.INFORMATION);
-            a.setTitle("Waiting");
-            a.setHeaderText("Wait till game starts!");
-            a.setContentText(message.readSomething());
-            a.getButtonTypes().clear();
-            a.show();
+            if ((forParser = message.readSomething()).equals("ERROR")){
+                primStage.close();
+            } else {
+                a.setTitle("Waiting");
+                a.setHeaderText("Wait till game starts!");
+                a.setContentText(forParser);
+                a.getButtonTypes().clear();
+                a.show();
+            }
+
 
             Task<Void> sleeper = new Task<Void>() {
                 @Override
@@ -123,34 +140,31 @@ public class Intro {
                     return null;
                 }
             };
-            sleeper.setOnSucceeded(new EventHandler<WorkerStateEvent>() {
-                @Override
-                public void handle(WorkerStateEvent event) {
+            sleeper.setOnSucceeded(event -> {
 
-                    a.setResult(ButtonType.CLOSE);
-                    a.close();
+                a.setResult(ButtonType.CLOSE);
+                a.close();
 
-                    parsedMessage = forParser.split("\\|");
-                    int numOfPlay = Integer.parseInt(parsedMessage[1]);
-                    for (int i = 2; i < numOfPlay+2; i++) {
-                        parsedMessage[i-2] = parsedMessage[i];
-                    }
-                    try {
-                        game = new Game(primStage,numOfPlay, parsedMessage,name.getCharacters().toString(),message);
-                    } catch (FileNotFoundException e) {
-                        e.printStackTrace();
-                    }
-
-                    try {
-                        primStage.setScene(new Scene(game.createRootPanee(),game.minHeight,game.minWidth));
-                    } catch (FileNotFoundException e) {
-                        e.printStackTrace();
-                    }
-                    primStage.sizeToScene();
-                    primStage.setMinHeight(game.minHeight);
-                    primStage.setMinWidth(game.minWidth);
-                    primStage.setY(100);
+                parsedMessage = forParser.split("\\|");
+                int numOfPlay = Integer.parseInt(parsedMessage[1]);
+                for (int i = 2; i < numOfPlay+2; i++) {
+                    parsedMessage[i-2] = parsedMessage[i];
                 }
+                try {
+                    game = new Game(primStage,numOfPlay, parsedMessage,name.getCharacters().toString(),message);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+
+                try {
+                    primStage.setScene(new Scene(game.createRootPanee(),game.minHeight,game.minWidth));
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+                primStage.sizeToScene();
+                primStage.setMinHeight(game.minHeight);
+                primStage.setMinWidth(game.minWidth);
+                primStage.setY(100);
             });
             new Thread(sleeper).start();
 

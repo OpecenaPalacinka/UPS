@@ -13,13 +13,13 @@ typedef struct gamers {
     char name[MAX_NAME_LENGTH];
     int numOfFingers;
     int socket;
+    int connected;
 } Gamer;
 
 typedef struct games {
     int numOfPlayers;
     Gamer *gamers[4];
     int whoPlays;
-    int secToWait;
     State state;
 } Game;
 
