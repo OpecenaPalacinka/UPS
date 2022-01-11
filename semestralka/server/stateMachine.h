@@ -12,9 +12,7 @@ typedef enum e_state {
     ST_NOT_ALLOWED = 0,
     ST_INIT = 1,
     ST_WAITING = 2,
-    ST_WORKING = 3,
-    ST_PAUSE = 4,
-    ST_QUIT = 5
+    ST_GUESSING = 3,
 } State;
 
 typedef enum e_event {
@@ -22,7 +20,6 @@ typedef enum e_event {
     EV_GUESS = 1,
     EV_FINGERS = 2,
     EV_WRONG = 3,
-    EV_PAUSE = 4,
 } Event;
 
 #endif //SERVER_STATEMACHINE_H

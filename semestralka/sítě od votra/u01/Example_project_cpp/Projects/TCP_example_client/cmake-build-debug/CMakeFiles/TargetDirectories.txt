@@ -1,3 +1,0 @@
-/home/vikturek/Documents/FIT/Projects/TCP_example_client/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/home/vikturek/Documents/FIT/Projects/TCP_example_client/cmake-build-debug/CMakeFiles/TCP_example_client.dir
-/home/vikturek/Documents/FIT/Projects/TCP_example_client/cmake-build-debug/CMakeFiles/edit_cache.dir

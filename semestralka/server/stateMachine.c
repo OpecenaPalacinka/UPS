@@ -4,9 +4,7 @@
 const char * const state_str[] = {
         [ST_NOT_ALLOWED] = "not allowed",
         [ST_WAITING] = "waiting",
-        [ST_WORKING]  = "working",
-        [ST_PAUSE]  = "pause",
-        [ST_QUIT] = "quit"
+        [ST_GUESSING]  = "working",
 };
 
 const char * const event_str[] = {
@@ -17,20 +15,16 @@ const char * const event_str[] = {
 
 State transitions[STATES_COUNT][EVENTS_COUNT] = {
         [ST_INIT][EV_LOGIN] = ST_INIT,
-        [ST_WAITING][EV_GUESS] = ST_WORKING,
-        [ST_WAITING][EV_PAUSE] = ST_PAUSE
+        [ST_WAITING][EV_GUESS] = ST_GUESSING,
+        [ST_GUESSING][EV_FINGERS] = ST_GUESSING
 };
 
-void print_states(){
-    for (int i=0; i<STATES_COUNT;i++){
-        printf("State: %s(%d)\n", state_str[i], i);
-    }
-}
-
-void print_state(State state){
-    printf("%s\n", state_str[state]);
-}
-
+/**
+ * Vrací hodnotu v matici, výsledek
+ * @param state Aktuální stav
+ * @param event Událost, která se děje
+ * @return Vrací hodnotu mez 0-5
+ */
 int allowed_transition(State state, Event event) {
     return transitions[state][event];
 }

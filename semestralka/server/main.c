@@ -12,33 +12,23 @@
 #include "stateMachine.c"
 #include "parser.c"
 #include "game.h"
-
-#define MAX_INPUT_LENGTH 75
+#include "game.c"
 
 //Rozhodovací promměná pro frontu hráčů
 int *cislo;
 pthread_t thread;
 Game **game;
 int numOfGames = 0;
+int numOfWaitingPlayers = 0;
 char *start_message;
+int fingerCounter = 0;
+int numOfFingersSend = 0;
+int guessOfRound = 0;
 
-Gamer *new_gamer(){
-    Gamer *gamer1;
-    gamer1 = malloc(sizeof(Gamer));
-    gamer1->numOfFingers = 2;
-    return gamer1;
-}
-
-Game *new_game(int numOfPlaye){
-    Game *gameska;
-    gameska = malloc(sizeof(Game));
-    for (int i = 0; i <numOfPlaye;i++){
-        gameska->gamers[i] = new_gamer();
-    }
-    gameska->state = ST_INIT;
-    return gameska;
-}
-
+/**
+ * Inicializuje hru
+ * @param playersInQueue počet hráčů ve hře
+ */
 void makeNewGame(int playersInQueue){
     game[numOfGames] = new_game(playersInQueue);
     *cislo = 0;
@@ -54,23 +44,57 @@ void makeNewGame(int playersInQueue){
     for (int i = 0; i < playersInQueue; i++){
         write(game[numOfGames]->gamers[i]->socket,start_message, strlen(start_message));
     }
-
+    numOfWaitingPlayers -= playersInQueue;
     printf("%s", start_message);
     numOfGames++;
 }
 
-void *funkce() {
+/**
+ * Ukončí hru, pokud ve hře zůstal poslední hráč
+ * @param actualGameNumber Číslo hry
+ * @param actualGamerNum Číslo hráče
+ */
+void endGame(int actualGameNumber, int actualGamerNum){
+    printf("Hra skončila.\nVyhrál: %s\n",game[actualGameNumber]->gamers[actualGamerNum]->name);
+    for (int i = 0; i < game[actualGameNumber]->numOfPlayers; i++){
+        free(game[actualGameNumber]->gamers[i]);
+    }
+    free(game[actualGameNumber]);
+    numOfGames--;
+    fingerCounter = 0;
+    numOfFingersSend = 0;
+    guessOfRound = 0;
+}
+
+/**
+ * Časovač pro čekání na připojení ostatních hráčů v době, kdy jsou do hry připojeni 2 hráči
+ * @return
+ */
+void *timerToNewGame() {
     *cislo = 1;
 
     sleep(25);
 
     *cislo = 2;
-    //printf("Nespim\n");
+
     makeNewGame(elementsInQueue());
     pthread_exit(cislo);
 }
 
-int main (void) {
+int main (int argc, char **argv) {
+    int portNum;
+
+    //Ošetření vstupních portů
+    if (argc != 2){
+        printf("Bohužel jste zapomněl zadat číslo portu nebo jste zadal až moc parametrů, zkuste to znovu!\n");
+        exit(1);
+    } else if (strspn(argv[1], "0123456789") != strlen(argv[1])){
+        printf("Asi jste omylem zadal do portu i písmenko, zkuste to znovu!\n");
+        exit(1);
+    } else if ((portNum = atoi(argv[1])) > 65535 || portNum < 0){
+        printf("Zadanej port je mimo meze portů, zkuste to znovu!\n");
+        exit(1);
+    }
 
     int server_socket;
     int client_socket, fd;
@@ -80,24 +104,26 @@ int main (void) {
     *cislo = 0;
 
 
-    char *hovnqqo = "ERROR\n";
+    char *errorMessage = "ERROR\n";
     Gamer **gamers = malloc(sizeof(Gamer) * 10);
     int actualGameNumber = 0;
     int actualGamerNum = 0;
-    int numOfWaitingPlayers = 0;
+
     int playersInQueue;
 
     game = malloc(sizeof(Game) * 10);
     int numOfArgs = 0;
     char **arguments = NULL;
-    int guessOfRound = 0;
-    int fingerCounter = 0;
-    int numOfFingersSend = 0;
+    int flag;
+
     int nextGamer = 0;
+    int numOfGameSomeoneIsTryingToReconnect;
 
     char welcome_message[] = "Zdárek párek, úspěšně jsi se připojil na server!\n";
     char login_success[] = "Úspěšně jste byl přihlášen, nyní jste ve frontě a prosím počkejte, než vám najdeme protihráče.\n";
     char give_guess[] = "GIVEGUESS\n";
+    char *reconnectMessage = malloc(sizeof(char) * MAX_NAME_LENGTH + 12);
+    char *reconnectMessageForRelog = malloc(sizeof(char) * MAX_NAME_LENGTH * 2 + 35);
     char *end_game_message = malloc(sizeof(char) * MAX_NAME_LENGTH + 8);
     char *end_of_round_message = malloc(sizeof(char) * 2 * MAX_NAME_LENGTH + 15);
     char **names_ready_to_play = malloc(sizeof(char *) * 4);
@@ -117,7 +143,7 @@ int main (void) {
     memset(&my_addr, 0, sizeof(struct sockaddr_in));
 
     my_addr.sin_family = AF_INET;
-    my_addr.sin_port = htons(10000);
+    my_addr.sin_port = htons(portNum);
     my_addr.sin_addr.s_addr = INADDR_ANY;
 
     return_value = bind(server_socket, (struct sockaddr *) &my_addr, sizeof(struct sockaddr_in));
@@ -178,11 +204,26 @@ int main (void) {
                 else {
                     // pocet bajtu co je pripraveno ke cteni
                     ioctl(fd, FIONREAD, &a2read);
-                    // mame co cist
 
-                    if (a2read > 75){
-                        printf("Moc dlouhá zpráva, čau");
-                        return -1;
+                    actualGameNumber = findGameBySocket(fd,numOfGames,game);
+                    if (actualGameNumber != -1){
+                        actualGamerNum = findGamerBySocket(fd,actualGameNumber,game);
+                    }
+                    
+                    // mame co cist
+                    if (a2read > MAX_NAME_LENGTH+7){
+                        write(fd,errorMessage, strlen(errorMessage));
+                        flag = removePlayerFromGame(findGamerBySocket(fd,actualGameNumber,game),game[actualGameNumber]);
+                        if (flag == 1){
+                            endGame(actualGameNumber,actualGamerNum);
+                        }
+                        close(fd);
+                        FD_CLR(fd, &client_socks);
+                        printf("Klient byl odebrán se sady socketů, moc dlouhá zpráva!\n");
+                        if (game[actualGameNumber]->state == ST_GUESSING){
+                            goto fingers;
+                        }
+                        continue;
                     }
 
                     if (a2read > 0) {
@@ -197,23 +238,46 @@ int main (void) {
 
                         arguments = get_args(input,&numOfArgs);
 
-                        actualGameNumber = findGameBySocket(fd,numOfGames,game);
-                        if (actualGameNumber != -1){
-                            actualGamerNum = findGamerBySocket(fd,actualGameNumber,game);
-                        }
+                       
 
                         event = setEventFromArg(arguments[0]);
 
                         switch (event) {
                             case EV_LOGIN:
                                 if (actualGameNumber == -1){
-                                    if (1 == 2) {
+                                    //Pokus o znovu připojení do hry
+                                    numOfGameSomeoneIsTryingToReconnect = findPlayerForRelog(game,arguments[1],numOfGames);
+                                    if (numOfGameSomeoneIsTryingToReconnect != -1) {
+                                        for (int i = 0; i < game[numOfGameSomeoneIsTryingToReconnect]->numOfPlayers; ++i) {
+                                            if (strcmp(game[numOfGameSomeoneIsTryingToReconnect]->gamers[i]->name,arguments[1]) == 0
+                                            && game[numOfGameSomeoneIsTryingToReconnect]->gamers[i]->connected == 0){
+                                                for (int j = 0; j < game[numOfGameSomeoneIsTryingToReconnect]->numOfPlayers; ++j){
+                                                    if (strcmp(game[numOfGameSomeoneIsTryingToReconnect]->gamers[j]->name,arguments[1]) == 0){
+                                                        //reconnect daného hráče
+                                                        makeReconnectMessageForRelogPlayer(reconnectMessageForRelog,game[numOfGameSomeoneIsTryingToReconnect]);
+                                                        game[numOfGameSomeoneIsTryingToReconnect]->gamers[j]->connected = 1;
+                                                        game[numOfGameSomeoneIsTryingToReconnect]->gamers[j]->socket = fd;
+                                                        write(fd,reconnectMessageForRelog, strlen(reconnectMessageForRelog));
+                                                    } else {
+                                                        //reconnect zpráva pro ostatní
+                                                        makeReconnectMessageForOthers(reconnectMessage,arguments[1]);
+                                                        write(game[numOfGameSomeoneIsTryingToReconnect]->gamers[j]->socket,reconnectMessage,
+                                                              strlen(reconnectMessage));
+                                                    }
+                                                }
+                                                break;
+                                            }
+                                        }
 
+                                    //Nikdo se nesnaží připojit do hry
                                     } else {
-
                                         gamers[numOfWaitingPlayers] = new_gamer();
 
-                                        strcpy(gamers[numOfWaitingPlayers]->name, arguments[1]);
+                                        if (numOfArgs == 1){
+                                            strcpy(gamers[numOfWaitingPlayers]->name,"Trouba");
+                                        } else {
+                                            strcpy(gamers[numOfWaitingPlayers]->name, arguments[1]);
+                                        }
                                         gamers[numOfWaitingPlayers]->socket = fd;
 
                                         enqueue(gamers[numOfWaitingPlayers]);
@@ -230,7 +294,7 @@ int main (void) {
                                         if (playersInQueue >= 2 && playersInQueue <= 3) {
                                             //Start countdown
                                             if (*cislo == 0) {
-                                                pthread_create(&thread, NULL, &funkce, NULL);
+                                                pthread_create(&thread, NULL, &timerToNewGame, NULL);
                                             }
                                         } else if (playersInQueue == 4) {
                                             //Start game
@@ -250,36 +314,66 @@ int main (void) {
                                                 write(game[numOfGames]->gamers[i]->socket, start_message,
                                                       strlen(start_message));
                                             }
-
+                                            numOfWaitingPlayers -= 4;
                                             numOfGames++;
                                             break;
                                         }
                                     }
 
                                 } else {
-                                    write(fd,hovnqqo, strlen(hovnqqo));
-                                    free(game[actualGameNumber]);
+                                    //Hráč, který je již přihlášen se chce znovu přihlásit
+                                    write(fd,errorMessage, strlen(errorMessage));
+                                    flag = removePlayerFromGame(findGamerBySocket(fd,actualGameNumber,game),game[actualGameNumber]);
+                                    if (flag == 1){
+                                        endGame(actualGameNumber,actualGamerNum);
+                                    }
                                     close(fd);
                                     FD_CLR(fd, &client_socks);
-                                    printf("Klient byl odebrán se sady socketů, píše blbosti!\n");
+                                    printf("Klient byl odebrán se sady socketů, LOGIN i když je přihlášený!\n");
                                     break;
                                 }
 
 
                                 break;
                             case EV_GUESS:
-                                if (allowed_transition(game[actualGameNumber]->state,EV_GUESS) == 0){
-                                    printf("Jsem tu špatně\n");
-                                    for (int i = 0; i < game[actualGameNumber]->numOfPlayers; i++){
-                                        write(game[actualGameNumber]->gamers[i]->socket,give_guess, strlen(give_guess));
+                                if (allowed_transition(game[actualGameNumber]->state,EV_GUESS) == 0) {
+                                    write(fd, errorMessage, strlen(errorMessage));
+                                    flag = removePlayerFromGame(findGamerBySocket(fd, actualGameNumber, game),
+                                                                game[actualGameNumber]);
+                                    if (flag == 1) {
+                                        endGame(actualGameNumber, actualGamerNum);
                                     }
-                                    free(game[actualGameNumber]);
                                     close(fd);
                                     FD_CLR(fd, &client_socks);
-                                    printf("Klient byl odebrán se sady socketů, píše blbosti!\n");
+                                    printf("Klient byl odebrán se sady socketů, GUESS když nemá být GUESS!\n");
+                                    break;
+                                } else if (actualGamerNum != game[actualGameNumber]->whoPlays) {
+                                    write(fd, errorMessage, strlen(errorMessage));
+                                    flag = removePlayerFromGame(findGamerBySocket(fd, actualGameNumber, game),
+                                                                game[actualGameNumber]);
+                                    if (flag == 1) {
+                                        endGame(actualGameNumber, actualGamerNum);
+                                    }
+                                    close(fd);
+                                    FD_CLR(fd, &client_socks);
+                                    printf("Klient byl odebrán se sady socketů, GUESS, když je na tahu někdo jiný!\n");
                                     break;
                                 } else {
-                                    guessOfRound = atoi(arguments[1]);
+                                    if (numOfArgs == 1){
+                                        write(fd, errorMessage, strlen(errorMessage));
+                                        flag = removePlayerFromGame(findGamerBySocket(fd, actualGameNumber, game),
+                                                                    game[actualGameNumber]);
+                                        if (flag == 1) {
+                                            endGame(actualGameNumber, actualGamerNum);
+                                        }
+                                        close(fd);
+                                        FD_CLR(fd, &client_socks);
+                                        printf("Klient byl odebrán se sady socketů, GUESS, bez parametrů!\n");
+                                        break;
+                                    } else {
+                                        guessOfRound = atoi(arguments[1]);
+                                    }
+                                    game[actualGameNumber]->state = ST_GUESSING;
                                     for (int i = 0; i < game[actualGameNumber]->numOfPlayers; i++){
                                         write(game[actualGameNumber]->gamers[i]->socket,give_guess, strlen(give_guess));
                                     }
@@ -287,64 +381,114 @@ int main (void) {
 
                                 break;
                             case EV_FINGERS:
-                                fingerCounter += atoi(arguments[1]);
-                                numOfFingersSend++;
-                                if (numOfFingersSend == game[actualGameNumber]->numOfPlayers){
-                                    if (fingerCounter == guessOfRound){
-                                        if (game[actualGameNumber]->gamers[actualGamerNum]->numOfFingers == 1){
-                                            makeENDGAMECommand(end_game_message,game[actualGameNumber]->gamers[actualGamerNum]->name);
-                                            for (int i = 0; i < game[actualGameNumber]->numOfPlayers; i++){
-                                                write(game[actualGameNumber]->gamers[i]->socket,end_game_message, strlen(end_game_message));
+                                if (allowed_transition(game[actualGameNumber]->state,EV_FINGERS) != 0){
+                                    if (numOfArgs == 1){
+                                        write(fd,errorMessage, strlen(errorMessage));
+                                        flag = removePlayerFromGame(findGamerBySocket(fd,actualGameNumber,game),game[actualGameNumber]);
+                                        if (flag == 1){
+                                            endGame(actualGameNumber,actualGamerNum);
+                                        }
+                                        close(fd);
+                                        FD_CLR(fd, &client_socks);
+                                        printf("Klient byl odebrán se sady socketů, FINGERS bez parametrů!\n");
+                                        break;
+                                    }
+                                    if (atoi(arguments[1]) < 0 || atoi(arguments[1]) > game[actualGameNumber]->gamers[findGamerBySocket(fd,actualGameNumber,game)]->numOfFingers){
+                                        write(fd,errorMessage, strlen(errorMessage));
+                                        flag = removePlayerFromGame(findGamerBySocket(fd,actualGameNumber,game),game[actualGameNumber]);
+                                        if (flag == 1){
+                                            endGame(actualGameNumber,actualGamerNum);
+                                        }
+                                        close(fd);
+                                        FD_CLR(fd, &client_socks);
+                                        printf("Klient byl odebrán se sady socketů, FINGERS nevalidní hodnota!\n");
+                                        break;
+                                    }
+                                    if (2 == 1){
+                                        fingers:
+                                        fingerCounter += 0;
+                                    } else {
+                                        fingerCounter += atoi(arguments[1]);
+                                        numOfFingersSend++;
+                                    }
+                                    if (numOfFingersSend == numOfActivePlayers(game[actualGameNumber])){
+                                        if (fingerCounter == guessOfRound){
+                                            if (game[actualGameNumber]->gamers[game[actualGameNumber]->whoPlays]->numOfFingers == 1){
+                                                makeENDGAMECommand(end_game_message,game[actualGameNumber]->gamers[game[actualGameNumber]->whoPlays]->name);
+                                                for (int i = 0; i < game[actualGameNumber]->numOfPlayers; i++){
+                                                    write(game[actualGameNumber]->gamers[i]->socket,end_game_message, strlen(end_game_message));
+                                                }
+                                                printf("Hra skončila.\nVyhrál: %s\n",game[actualGameNumber]->gamers[actualGamerNum]->name);
+                                                for (int i = 0; i < game[actualGameNumber]->numOfPlayers; i++){
+                                                    free(game[actualGameNumber]->gamers[i]);
+                                                }
+                                                free(game[actualGameNumber]);
+                                                numOfGames--;
+                                                fingerCounter = 0;
+                                                numOfFingersSend = 0;
+                                                guessOfRound = 0;
+                                                break;
+                                            } else {
+                                                nextGamer = nextPlayer(game[actualGameNumber],game[actualGameNumber]->whoPlays);
+                                                makeENDOFROUNDCommand(end_of_round_message,game[actualGameNumber]->gamers[nextGamer]->name,1,game[actualGameNumber]->gamers[game[actualGameNumber]->whoPlays]->name,fingerCounter,guessOfRound);
+                                                for (int i = 0; i < game[actualGameNumber]->numOfPlayers; i++){
+                                                    write(game[actualGameNumber]->gamers[i]->socket,end_of_round_message, strlen(end_of_round_message));
+                                                }
+                                                game[actualGameNumber]->gamers[game[actualGameNumber]->whoPlays]->numOfFingers--;
+                                                game[actualGameNumber]->whoPlays = nextGamer;
+                                                game[actualGameNumber]->state = ST_WAITING;
                                             }
-                                            printf("Hra skončila.\nVyhrál: %s\n",game[actualGameNumber]->gamers[actualGamerNum]->name);
-                                            //numOfGames--;
-                                            for (int i = 0; i < game[actualGameNumber]->numOfPlayers; i++){
-                                                free(game[actualGameNumber]->gamers[i]);
-                                            }
-                                            free(game[actualGameNumber]);
-                                            fingerCounter = 0;
-                                            numOfFingersSend = 0;
-                                            guessOfRound = 0;
-                                            break;
                                         } else {
                                             nextGamer = nextPlayer(game[actualGameNumber],game[actualGameNumber]->whoPlays);
-                                            makeENDOFROUNDCommand(end_of_round_message,game[actualGameNumber]->gamers[nextGamer]->name,1,game[actualGameNumber]->gamers[game[actualGameNumber]->whoPlays]->name,fingerCounter,guessOfRound);
+                                            makeENDOFROUNDCommand(end_of_round_message,game[actualGameNumber]->gamers[nextGamer]->name,0,game[actualGameNumber]->gamers[game[actualGameNumber]->whoPlays]->name,fingerCounter,guessOfRound);
                                             for (int i = 0; i < game[actualGameNumber]->numOfPlayers; i++){
                                                 write(game[actualGameNumber]->gamers[i]->socket,end_of_round_message, strlen(end_of_round_message));
                                             }
-                                            game[actualGameNumber]->gamers[actualGamerNum]->numOfFingers--;
                                             game[actualGameNumber]->whoPlays = nextGamer;
+                                            game[actualGameNumber]->state = ST_WAITING;
                                         }
-                                    } else {
-                                        nextGamer = nextPlayer(game[actualGameNumber],game[actualGameNumber]->whoPlays);
-                                        makeENDOFROUNDCommand(end_of_round_message,game[actualGameNumber]->gamers[nextGamer]->name,0,game[actualGameNumber]->gamers[game[actualGameNumber]->whoPlays]->name,fingerCounter,guessOfRound);
-                                        for (int i = 0; i < game[actualGameNumber]->numOfPlayers; i++){
-                                            write(game[actualGameNumber]->gamers[i]->socket,end_of_round_message, strlen(end_of_round_message));
-                                        }
-                                        game[actualGameNumber]->whoPlays = nextGamer;
+                                        fingerCounter = 0;
+                                        numOfFingersSend = 0;
+                                        guessOfRound = 0;
                                     }
-                                    fingerCounter = 0;
-                                    numOfFingersSend = 0;
-                                    guessOfRound = 0;
+                                } else {
+                                    write(fd,errorMessage, strlen(errorMessage));
+                                    flag = removePlayerFromGame(findGamerBySocket(fd,actualGameNumber,game),game[actualGameNumber]);
+                                    if (flag == 1){
+                                        endGame(actualGameNumber,actualGamerNum);
+                                    }
+                                    close(fd);
+                                    FD_CLR(fd, &client_socks);
+                                    printf("Klient byl odebrán se sady socketů, FINGERS když nemají přijít!\n");
+                                    break;
                                 }
                                 break;
                             case EV_WRONG:
-
-                                write(fd,hovnqqo, strlen(hovnqqo));
+                                write(fd,errorMessage, strlen(errorMessage));
+                                if (actualGameNumber != -1){
+                                    flag = removePlayerFromGame(findGamerBySocket(fd,actualGameNumber,game),game[actualGameNumber]);
+                                    if (flag == 1){
+                                        endGame(actualGameNumber,actualGamerNum);
+                                    }
+                                }
                                 close(fd);
                                 FD_CLR(fd, &client_socks);
                                 printf("Klient byl odebrán se sady socketů, píše blbosti!\n");
-                                break;
-                            case EV_PAUSE:
                                 break;
                         }
 
                     }
                         // na socketu se stalo neco spatneho
                     else {
+                        flag = 0;
                         int actualGame = findGameBySocket(fd,numOfGames,game);
-                        int gamerLeft = findGamerBySocket(fd,actualGame,game);
-                        removePlayerFromGame(gamerLeft,game[actualGame]);
+                        if (actualGame != -1){
+                            int gamerLeft = findGamerBySocket(fd,actualGame,game);
+                            flag = removePlayerFromGame(gamerLeft,game[actualGame]);
+                        }
+                        if (flag == 1){
+                            endGame(actualGameNumber,actualGamerNum);
+                        }
                         close(fd);
                         FD_CLR(fd, &client_socks);
                         printf("Klient se odpojil a byl odebran ze sady socketů\n");

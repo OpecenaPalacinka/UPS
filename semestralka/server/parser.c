@@ -2,14 +2,18 @@
 // Created by Pelikán on 17.11.2021.
 //
 
+#include <stdio.h>
 #include <string.h>
 #include <malloc.h>
 
 #define DELIM "|"
 
-/*
+/**
  * Z parametru input parsuje command a parametry
  * Druhý parametr *args používá a vrátil počet argumentů
+ * @param input Ukazatel na zprávu
+ * @param args Počet argumentů
+ * @return Vrací pole argumentů
  */
 char **get_args(char *input, int *args){
     char **arguments;
@@ -39,8 +43,10 @@ char **get_args(char *input, int *args){
     return arguments;
 }
 
-/*
+/**
  * Převádí string na event
+ * @param event event
+ * @return Vrací Event
  */
 Event setEventFromArg(char *event){
     if (strcmp("LOGIN",event) == 0){
@@ -55,8 +61,12 @@ Event setEventFromArg(char *event){
     }
 }
 
-/*
+/**
  * Vytváří START command, který se rozpošle všem hráčům dané hry a odstartuje hru
+ * @param message Ukazatel na zprávu
+ * @param numOfPlayers Počet hráčů
+ * @param game Hra
+ * @return Vrací zprávu
  */
 char * makeSTARTCommand(char *message,int numOfPlayers, Game *game){
     snprintf(message, 9,"START|%d|",numOfPlayers);
@@ -72,6 +82,16 @@ char * makeSTARTCommand(char *message,int numOfPlayers, Game *game){
     return message;
 }
 
+/**
+ * Vytváří zprávu o konci kola
+ * @param message Ukazatel na zprávu
+ * @param nextGamer Jméno hráče, který je další na tahu
+ * @param true 1|0, zda bylo kolo úspěšně či ne
+ * @param actualGamer Jméno hráče, který hrál
+ * @param fingers Počet zvednutých prstů
+ * @param guess Tip
+ * @return Vrací zprávu
+ */
 char * makeENDOFROUNDCommand(char *message, char *nextGamer, int true, char *actualGamer, int fingers, int guess){
     char yesNo[7];
     if (true == 1){
@@ -83,75 +103,45 @@ char * makeENDOFROUNDCommand(char *message, char *nextGamer, int true, char *act
     return message;
 }
 
+/**
+ * Vytváří zprávu o konci hry
+ * @param message Ukazatel na zprávu
+ * @param winGamer Jméno hráče, který vyhrál
+ * @return Vrací zprávu
+ */
 char * makeENDGAMECommand(char *message, char *winGamer){
     snprintf(message,25,"ENDGAME|%s\n", winGamer);
     return message;
 }
 
-/*
- * Najde gamesku podle čísla socketu hráče
- * Používá se, když někdo pošle command, aby se zjistilo, o jakou hru se jedná
+/**
+ * Vytváří zprávu o tom, že se hráč připojil do hry znovu
+ * @param message Ukazatel na zprávu
+ * @param whoJoins Jméno hráče
+ * @return Vrací zprávu
  */
-int findGameBySocket(int socket, int totalNumOfGames, Game **game){
-    int numOfGame = -1;
-    for (int i = 0; i < totalNumOfGames; ++i) {
-        for (int j = 0; j < game[i]->numOfPlayers; ++j) {
-            if (game[i]->gamers[j]->socket == socket){
-                numOfGame = i;
-                return numOfGame;
-            }
-        }
-    }
-    return numOfGame;
+char * makeReconnectMessageForOthers(char * message, char *whoJoins){
+    snprintf(message,35,"RECONNECT|%s\n", whoJoins);
+    return message;
 }
 
-/*
- * Najde hráče podle čísla socketu
- * Používá se, když někdo pošle command, aby se zjistilo, kdo ho poslal
+/**
+ * Vytvoří zprávu pro hráče, který se znovu připojuje do hry
+ * @param message Ukazatel na zprávu
+ * @param game Hra, do které se chce připojit
+ * @return Vrací zprávu
  */
-int findGamerBySocket(int socket, int actualGame, Game **game){
-    int numOfGamer = -1;
-        for (int j = 0; j < game[actualGame]->numOfPlayers; ++j) {
-            if (game[actualGame]->gamers[j]->socket == socket){
-                numOfGamer = j;
-                return numOfGamer;
-            }
-        }
-    return numOfGamer;
-}
-
-int nextPlayer(Game *game, int actualGamer){
-
-    if (game->numOfPlayers - 1 >= actualGamer +1){
-        printf("%d + 1\n",actualGamer);
-        return actualGamer + 1;
-    } else {
-        printf("0\n");
-        return 0;
+char * makeReconnectMessageForRelogPlayer(char * message, Game *game){
+    char * hracPlusPrsty = malloc(sizeof(char) * 50);
+    char * prsty = malloc(sizeof(char) * 5);
+    for (int i = 0; i < game->numOfPlayers; ++i) {
+        strcat(hracPlusPrsty,game->gamers[i]->name);
+        strcat(hracPlusPrsty,"+");
+        sprintf(prsty,"%d|",game->gamers[i]->numOfFingers);
+        strcat(hracPlusPrsty,prsty);
     }
-}
-
-void removePlayerFromGame(int playerLeft, Game *game){
-    char *message = malloc(sizeof(char)*50);
-    char *name = game->gamers[playerLeft]->name;
-    for (int i = 0; i < game->numOfPlayers-1; ++i) {
-        if (i >= playerLeft){
-            game->gamers[i] = game->gamers[i+1];
-        }
-    }
-    game->numOfPlayers--;
-    if (game->numOfPlayers == 1){
-        makeENDGAMECommand(message,game->gamers[0]->name);
-        write(game->gamers[0]->socket,message, strlen(message));
-    } else {
-        snprintf(message,50,"LOGOUT|%s\n",name);
-        for (int i = 0; i < game->numOfPlayers; ++i) {
-            write(game->gamers[i]->socket,message, strlen(message));
-        }
-    }
-
-}
-
-int findPlayerForRelog(Game **game){
-
+    snprintf(message,4*MAX_NAME_LENGTH,"RECONNECT|%d|%s%s\n",game->numOfPlayers,hracPlusPrsty,game->gamers[game->whoPlays]->name);
+    free(hracPlusPrsty);
+    free(prsty);
+    return message;
 }
